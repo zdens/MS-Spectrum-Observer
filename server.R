@@ -17,10 +17,10 @@ shinyServer(function(input, output, session) {
   files_from_db <- reactive({
     spec_files <- get_files_from_db(data_dir_path)
     spec_files$label <- paste0("File ",
-                               spec_files$fi)
-    sorted_labels <- sort(spec_files$label, index.return = TRUE)
+                               spec_files$filename)
+    sorted_labels <- sort(spec_files$filename, index.return = TRUE)
     spec_files <- spec_files[sorted_labels$ix, ]
-    spec_files$label <- as.factor(spec_files$label)
+    spec_files$label <- as.factor(spec_files$filename)
     return(list(spec_files = spec_files,
                 labels = c("Select spectra file",
                            sorted_labels$x)))
@@ -42,9 +42,10 @@ shinyServer(function(input, output, session) {
     filename <- spec_files$spec_files$filename[[idx]]
     fpath <- file.path(data_dir_path, filename)
     if (file.exists(fpath)) {
-      spectra <- importCdf(fpath)
-      protocol <- get_protocol(fpath)
-      spectra_info <- parse_spectrum(spectra, protocol)
+      spec_data <- readRDS(fpath)
+      spectra_info <- list(modes = spec_data$modes,
+                           spectra = spec_data$spectra,
+                           pr = spec_data$pr)
       spectra_info$files_inf <- spec_files
       spec_info_react(spectra_info)
       return(spectra_info)
@@ -130,7 +131,7 @@ shinyServer(function(input, output, session) {
     scan.num.l <- input$input.scan.num - input$input.scan.num.l
     scan.num.r <- input$input.scan.num + input$input.scan.num.r
     peaks <- detectPeaks(spectra_list$spectra_list, halfWindowSize = input$input.halfWindowSize,
-                         method = "SuperSmoother", SNR = 1)
+                         method = "SuperSmoother", SNR = input$input.snr)
     p.df <- data.frame(intensity = peaks[[input$input.scan.num]]@intensity,
                        mz = peaks[[input$input.scan.num]]@mass,
                        scan = "current_scan")
@@ -168,7 +169,8 @@ shinyServer(function(input, output, session) {
       spectra_list$spectra_list,
       reference = spectra_list$spectra_list[[which.max(spec.tic)]],
       halfWindowSize = input$input.halfWindowSize,
-      tolerance = input$input.tol.align
+      tolerance = input$input.tol.align,
+      SNR = input$input.snr
     )
     p.df <- data.frame(intensity = spectra_aligned[[input$input.scan.num]]@intensity,
                        mz = spectra_aligned[[input$input.scan.num]]@mass,
@@ -205,7 +207,7 @@ shinyServer(function(input, output, session) {
     }
     peaks <- detectPeaks(
       spec_aligned_list$aligned_spectra,
-      SNR = 1,
+      SNR = input$input.snr,
       halfWindowSize = input$input.halfWindowSize,
       method = "SuperSmoother"
     )
@@ -246,7 +248,8 @@ shinyServer(function(input, output, session) {
     peaks <-
       remove_negative_snr(detected_peaks$detected_peaks,
                           detected_peaks$aligned_spectra, 
-                          halfWindowSize = input$input.halfWindowSize)
+                          halfWindowSize = input$input.halfWindowSize,
+                          snr = input$input.snr)
     idx_gt_10 <- which(sapply(peaks, length) > 10)
     peaks2 <- binPeaks(peaks[idx_gt_10],
                        method = "strict",
@@ -338,10 +341,6 @@ shinyServer(function(input, output, session) {
                      scan_lines$left,
                      scan_lines$right)
     scan.df$scan <- factor(scan.df$scan)
-    sub_title <- paste0(
-      "HalfWinSize: ",
-      input$input.halfWindowSize,
-      ", method: SuperSmoother")
     get_plotly <- function(segment_df, lines_df, title_text, showlegend = FALSE) {
       ggp <- plot_ly(segment_df, legendgroup = ~scan,
                      showlegend = FALSE) %>%
@@ -364,15 +363,6 @@ shinyServer(function(input, output, session) {
     }
     ggp1 <- get_plotly(scan.df, scan.df, scan_lines$title)
     
-    detected_peaks <- peaksDf()
-    ggp2 <- get_plotly(detected_peaks$peaksDf, scan.df, detected_peaks$title)
-    
-    data_to_plot <- spectraAligned()
-    if (is.null(data_to_plot)) {
-      return(plot_empty())
-    }
-    ggp3 <- get_plotly(data_to_plot$aligned_spectra_df, scan.df, data_to_plot$title)
-    
     detected_peaks <- detectedAlignedPeaks()
     if (is.null(detected_peaks)) {
       return(plot_empty())
@@ -390,6 +380,9 @@ shinyServer(function(input, output, session) {
       return(plot_empty())
     }
     sub_title <- paste0(
+      "SNR: ",
+      input$input.snr,
+      ", ",
       "HalfWinSize: ",
       input$input.halfWindowSize,
       ", ",
@@ -407,8 +400,8 @@ shinyServer(function(input, output, session) {
                            sub_title,
                            "</sup>")
     
-    subplot(list(ggp1, ggp2, ggp3, ggp4, ggp5, ggp6), nrows = 6, shareX = TRUE,
-            heights = rep(1/6, length.out = 6), margin = 0.01) %>% 
+    subplot(list(ggp1, ggp4, ggp5, ggp6), nrows = 4, shareX = TRUE,
+            heights = rep(1/4, length.out = 4), margin = 0.01) %>% 
       layout(legend=list(title=list(text='<b> Scans </b>')),
              title = list(text = plotly_title, y = 0.99, yanchor = "top", x = 0.02))
   })

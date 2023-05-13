@@ -5,7 +5,7 @@ scan.num <- 20
 
 shinyUI(
   pageWithSidebar(
-    headerPanel("Spectra processing parameters investigation"),
+    headerPanel("Mass-spectrum observer"),
     sidebarPanel(
       width = 3,
       h3("Input spectra file"),
@@ -23,6 +23,7 @@ shinyUI(
       numericInput("input.scan.num", "MS scan number", value = scan.num),
       numericInput("input.scan.num.l", "MS scan position to the left", value = 10),
       numericInput("input.scan.num.r", "MS scan position to the right", value = 10),
+      numericInput("input.snr", "Signal/Noise ratio", value = 2),
       numericInput("input.halfWindowSize", "halfWindowSize", value = 9),
       numericInput('input.tol.align', "Mass peak tolerance align", value = 2e-4),
       numericInput('input.tol.bin.peaks', "Mass peak tolerance binPeaks", value = 2e-4)
