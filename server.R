@@ -43,8 +43,14 @@ shinyServer(function(input, output, session) {
     fpath <- file.path(data_dir_path, filename)
     if (file.exists(fpath)) {
       spec_data <- readRDS(fpath)
+      filtered_spectra <- lapply(spec_data$spectra, function(s){
+        p_idx <- which(s@mass >= input$input.mz_range[1] & s@mass <= input$input.mz_range[2])
+        MALDIquant::createMassSpectrum(mass = s@mass[p_idx],
+                                       intensity = s@intensity[p_idx],
+                                       metaData = s@metaData)
+      })
       spectra_info <- list(modes = spec_data$modes,
-                           spectra = spec_data$spectra,
+                           spectra = filtered_spectra,
                            pr = spec_data$pr)
       spectra_info$files_inf <- spec_files
       spec_info_react(spectra_info)
@@ -369,11 +375,11 @@ shinyServer(function(input, output, session) {
     }
     ggp4 <- get_plotly(detected_peaks$detected_peaks_df, scan.df, detected_peaks$title)
     
-    data_to_plot <- binPeaksPlot()
-    if (is.null(data_to_plot)) {
-      return(plot_empty())
-    }
-    ggp5 <- get_plotly(data_to_plot$bin_f_peaks_df, scan.df, data_to_plot$title)
+    # data_to_plot <- binPeaksPlot()
+    # if (is.null(data_to_plot)) {
+    #   return(plot_empty())
+    # }
+    # ggp5 <- get_plotly(data_to_plot$bin_f_peaks_df, scan.df, data_to_plot$title)
     
     data_to_plot <- featureMatrixPlot()
     if (is.null(data_to_plot)) {
@@ -400,8 +406,8 @@ shinyServer(function(input, output, session) {
                            sub_title,
                            "</sup>")
     
-    subplot(list(ggp1, ggp4, ggp5, ggp6), nrows = 4, shareX = TRUE,
-            heights = rep(1/4, length.out = 4), margin = 0.01) %>% 
+    subplot(list(ggp1, ggp4, ggp6), nrows = 3, shareX = TRUE,
+            heights = rep(1/3, length.out = 3), margin = 0.01) %>% 
       layout(legend=list(title=list(text='<b> Scans </b>')),
              title = list(text = plotly_title, y = 0.99, yanchor = "top", x = 0.02))
   })

@@ -23,6 +23,7 @@ shinyUI(
       numericInput("input.scan.num", "MS scan number", value = scan.num),
       numericInput("input.scan.num.l", "MS scan position to the left", value = 10),
       numericInput("input.scan.num.r", "MS scan position to the right", value = 10),
+      sliderInput("input.mz_range", "M/Z range:", min = 120, max = 2000, value = c(600, 850)),
       numericInput("input.snr", "Signal/Noise ratio", value = 2),
       numericInput("input.halfWindowSize", "halfWindowSize", value = 9),
       numericInput('input.tol.align', "Mass peak tolerance align", value = 2e-4),
